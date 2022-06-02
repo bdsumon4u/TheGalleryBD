@@ -582,7 +582,7 @@ if (!function_exists('my_asset')) {
         if (env('FILESYSTEM_DRIVER') == 's3') {
             return Storage::disk('s3')->url($path);
         } else {
-            return app('url')->asset('public/' . $path, $secure);
+            return static_asset($path, $secure);
         }
     }
 }
@@ -597,6 +597,10 @@ if (!function_exists('static_asset')) {
      */
     function static_asset($path, $secure = null)
     {
+        if (get_current_user() === 'sail') {
+            return asset($path, $secure);
+        }
+
         return app('url')->asset('public/' . $path, $secure);
     }
 }
@@ -626,6 +630,9 @@ if (!function_exists('getFileBaseURL')) {
         if (env('FILESYSTEM_DRIVER') == 's3') {
             return env('AWS_URL') . '/';
         } else {
+            if (get_current_user() === 'sail') {
+                return getBaseURL();
+            }
             return getBaseURL() . 'public/';
         }
     }
