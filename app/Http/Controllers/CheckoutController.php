@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\City;
+use App\Models\Country;
+use App\Models\State;
 use App\Utility\PayfastUtility;
 use Illuminate\Http\Request;
 use App\Models\Category;
@@ -27,10 +30,16 @@ class CheckoutController extends Controller
     //check the selected payment gateway and redirect to that controller accordingly
     public function checkout(Request $request)
     {
+        if (Auth::check()) {
+            $carts = Cart::where('user_id', Auth::user()->id)->get();
+        } else {
+            $carts = Cart::where('temp_user_id', $request->session()->get('temp_user_id'))->get();
+        }
+
         // Minumum order amount check
         if(get_setting('minimum_order_amount_check') == 1){
             $subtotal = 0;
-            foreach (Cart::where('user_id', Auth::user()->id)->get() as $key => $cartItem){
+            foreach ($carts as $key => $cartItem){
                 $subtotal += $cartItem['price'] * $cartItem['quantity'];
             }
             if ($subtotal < get_setting('minimum_order_amount')) {
@@ -39,12 +48,12 @@ class CheckoutController extends Controller
             }
         }
         // Minumum order amount check end
-        
+
         if ($request->payment_option != null) {
             (new OrderController)->store($request);
 
             $request->session()->put('payment_type', 'cart_payment');
-            
+
             $data['combined_order_id'] = $request->session()->get('combined_order_id');
             $request->session()->put('payment_data', $data);
 
@@ -90,7 +99,11 @@ class CheckoutController extends Controller
 
     public function get_shipping_info(Request $request)
     {
-        $carts = Cart::where('user_id', Auth::user()->id)->get();
+        if (Auth::check()) {
+            $carts = Cart::where('user_id', Auth::user()->id)->get();
+        } else {
+            $carts = Cart::where('temp_user_id', $request->session()->get('temp_user_id'))->get();
+        }
 //        if (Session::has('cart') && count(Session::get('cart')) > 0) {
         if ($carts && count($carts) > 0) {
             $categories = Category::all();
@@ -102,15 +115,34 @@ class CheckoutController extends Controller
 
     public function store_shipping_info(Request $request)
     {
+        $rules = [
+            'name' => 'required',
+            'address' => 'required',
+            'country_id' => 'required|integer',
+            'state_id' => 'required|integer',
+            'city_id' => 'required|integer',
+            'postal_code' => 'nullable',
+            'phone' => 'required',
+        ];
+
         if ($request->address_id == null) {
-            flash(translate("Please add shipping address"))->warning();
-            return back();
+            $address = $request->validate($rules);
+        } else {
+            $address = data_get(
+                Address::findOrFail($request->address_id)->toArray(),
+                array_keys($rules)
+            );
         }
 
-        $carts = Cart::where('user_id', Auth::user()->id)->get();
+        if (Auth::check()) {
+            $carts = Cart::where('user_id', Auth::user()->id)->get();
+        } else {
+            $carts = Cart::where('temp_user_id', $request->session()->get('temp_user_id'))->get();
+        }
 
         foreach ($carts as $key => $cartItem) {
             $cartItem->address_id = $request->address_id;
+            $cartItem->destination = $address;
             $cartItem->save();
         }
 
@@ -120,15 +152,27 @@ class CheckoutController extends Controller
 
     public function store_delivery_info(Request $request)
     {
-        $carts = Cart::where('user_id', Auth::user()->id)
-                ->get();
+        if (Auth::check()) {
+            $carts = Cart::where('user_id', Auth::user()->id)->get();
+        } else {
+            $carts = Cart::where('temp_user_id', $request->session()->get('temp_user_id'))->get();
+        }
 
         if($carts->isEmpty()) {
             flash(translate('Your cart is empty'))->warning();
             return redirect()->route('home');
         }
 
-        $shipping_info = Address::where('id', $carts[0]['address_id'])->first();
+        if (Auth::check()) {
+            $shipping_info = Address::where('id', $carts[0]['address_id'])->first();
+        } else {
+            $shipping_info = array_merge($destination = $carts[0]['destination'], [
+                'city' => City::find($destination['city_id'])->name,
+                'state' => State::find($destination['state_id'])->name,
+                'country' => Country::find($destination['country_id'])->name,
+            ]);
+        }
+
         $total = 0;
         $tax = 0;
         $shipping = 0;
@@ -251,7 +295,7 @@ class CheckoutController extends Controller
                         $response_message['response'] = 'warning';
                         $response_message['message'] = translate('This coupon is not applicable to your cart products!');
                     }
-                    
+
                 } else {
                     $response_message['response'] = 'warning';
                     $response_message['message'] = translate('You already used this coupon!');
@@ -318,12 +362,15 @@ class CheckoutController extends Controller
     {
         $combined_order = CombinedOrder::findOrFail(Session::get('combined_order_id'));
 
-        Cart::where('user_id', $combined_order->user_id)
-                ->delete();
+        if (Auth::check()) {
+            Cart::where('user_id', $combined_order->user_id)->delete();
+        } else {
+            Cart::where('temp_user_id', \request()->session()->get('temp_user_id'))->delete();
+        }
 
         //Session::forget('club_point');
         //Session::forget('combined_order_id');
-        
+
         foreach($combined_order->orders as $order){
             NotificationUtility::sendOrderPlacedNotification($order);
         }

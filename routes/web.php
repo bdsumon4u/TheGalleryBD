@@ -190,7 +190,7 @@ Route::controller(MercadopagoController::class)->group(function () {
     Route::any('/mercadopago/payment/done', 'paymentstatus')->name('mercadopago.done');
     Route::any('/mercadopago/payment/cancel', 'callback')->name('mercadopago.cancel');
 });
-//Mercadopago 
+//Mercadopago
 
 // SSLCOMMERZ Start
 Route::controller(SslcommerzController::class)->group(function () {
@@ -231,9 +231,17 @@ Route::group(['middleware' => ['user', 'verified', 'unbanned']], function() {
         Route::post('/new-user-email', 'update_email')->name('user.change.email');
         Route::post('/user/update-profile', 'userProfileUpdate')->name('user.profile.update');
     });
-    
+
     Route::get('/all-notifications', [NotificationController::class, 'index'])->name('all-notifications');
 
+});
+
+Route::controller(CheckoutController::class)->prefix('checkout')->group(function () {
+    Route::get('/', 'get_shipping_info')->name('checkout.shipping_info');
+    Route::any('/delivery_info', 'store_shipping_info')->name('checkout.store_shipping_infostore');
+    Route::post('/payment_select', 'store_delivery_info')->name('checkout.store_delivery_info');
+    Route::get('/order-confirmed', 'order_confirmed')->name('order_confirmed');
+    Route::post('/payment', 'checkout')->name('payment.checkout');
 });
 
 Route::group(['middleware' => ['customer', 'verified', 'unbanned']], function() {
@@ -241,18 +249,13 @@ Route::group(['middleware' => ['customer', 'verified', 'unbanned']], function() 
     // Checkout Routs
     Route::group(['prefix' => 'checkout'], function() {
         Route::controller(CheckoutController::class)->group(function () {
-            Route::get('/', 'get_shipping_info')->name('checkout.shipping_info');
-            Route::any('/delivery_info', 'store_shipping_info')->name('checkout.store_shipping_infostore');
-            Route::post('/payment_select', 'store_delivery_info')->name('checkout.store_delivery_info');
-            Route::get('/order-confirmed', 'order_confirmed')->name('order_confirmed');
-            Route::post('/payment', 'checkout')->name('payment.checkout');
             Route::post('/get_pick_up_points', 'get_pick_up_points')->name('shipping_info.get_pick_up_points');
             Route::get('/payment-select', 'get_payment_info')->name('checkout.payment_info');
             Route::post('/apply_coupon_code', 'apply_coupon_code')->name('checkout.apply_coupon_code');
             Route::post('/remove_coupon_code', 'remove_coupon_code')->name('checkout.remove_coupon_code');
             //Club point
             Route::post('/apply-club-point', 'apply_club_point')->name('checkout.apply_club_point');
-            Route::post('/remove-club-point', 'remove_club_point')->name('checkout.remove_club_point'); 
+            Route::post('/remove-club-point', 'remove_club_point')->name('checkout.remove_club_point');
         });
     });
 
@@ -291,17 +294,17 @@ Route::group(['middleware' => ['customer', 'verified', 'unbanned']], function() 
     });
 
     // Product Review
-    Route::post('/product_review_modal', [ReviewController::class, 'product_review_modal'])->name('product_review_modal');    
+    Route::post('/product_review_modal', [ReviewController::class, 'product_review_modal'])->name('product_review_modal');
 
 });
 
 Route::group(['middleware' => ['auth']], function() {
-    
+
     Route::get('invoice/{order_id}', [InvoiceController::class, 'invoice_download'])->name('invoice.download');
 
     // Reviews
     Route::resource('/reviews', ReviewController::class);
-    
+
     // Product Query
     Route::resource('conversations', ConversationController::class);
     Route::controller(ConversationController::class)->group(function () {
@@ -314,8 +317,8 @@ Route::group(['middleware' => ['auth']], function() {
     //Address
     Route::resource('addresses', AddressController::class);
     Route::controller(AddressController::class)->group(function () {
-        Route::post('/get-states', 'getStates')->name('get-state');
-        Route::post('/get-cities', 'getCities')->name('get-city');
+        Route::post('/get-states', 'getStates')->name('get-state')->withoutMiddleware('auth');
+        Route::post('/get-cities', 'getCities')->name('get-city')->withoutMiddleware('auth');
         Route::post('/addresses/update/{id}', 'update')->name('addresses.update');
         Route::get('/addresses/destroy/{id}', 'destroy')->name('addresses.destroy');
         Route::get('/addresses/set_default/{id}', 'set_default')->name('addresses.set_default');

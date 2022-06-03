@@ -141,7 +141,9 @@
                                         {{ translate('Continue to Shipping')}}
                                     </a>
                                 @else
-                                    <button class="btn btn-primary fw-600" onclick="showCheckoutModal()">{{ translate('Continue to Shipping')}}</button>
+                                    <a href="{{ route('checkout.shipping_info') }}" class="btn btn-primary fw-600">
+                                        {{ translate('Continue to Shipping')}}
+                                    </a>
                                 @endif
                             </div>
                         </div>
@@ -287,7 +289,7 @@
                 $('#cart-summary').html(data.cart_view);
             });
         }
-        
+
         function showCheckoutModal(){
             $('#login-modal').modal();
         }

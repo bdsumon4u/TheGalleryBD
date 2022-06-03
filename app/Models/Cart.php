@@ -25,4 +25,14 @@ class Cart extends Model
     {
         return $this->belongsTo(Address::class);
     }
+
+    public function setDestinationAttribute($destination)
+    {
+        $this->attributes['destination'] = json_encode($destination);
+    }
+
+    public function getDestinationAttribute($destination)
+    {
+        return json_decode($destination, true);
+    }
 }

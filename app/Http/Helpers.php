@@ -3,11 +3,13 @@
 use App\Http\Controllers\ClubPointController;
 use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\CommissionController;
+use App\Models\Country;
 use App\Models\Currency;
 use App\Models\BusinessSetting;
 use App\Models\ProductStock;
 use App\Models\Address;
 use App\Models\CustomerPackage;
+use App\Models\State;
 use App\Models\Upload;
 use App\Models\Translation;
 use App\Models\City;
@@ -528,8 +530,17 @@ function getShippingCost($carts, $index)
             return Shop::where('user_id', $product->user_id)->first()->shipping_cost / count($seller_products[$product->user_id]);
         }
     } elseif (get_setting('shipping_type') == 'area_wise_shipping') {
-        $shipping_info = Address::where('id', $carts[0]['address_id'])->first();
-        $city = City::where('id', $shipping_info->city_id)->first();
+        if (Auth::check()) {
+            $shipping_info = Address::where('id', $carts[0]['address_id'])->first();
+        } else {
+            $shipping_info = array_merge($destination = $carts[0]['destination'], [
+                'city' => City::find($destination['city_id'])->name,
+                'state' => State::find($destination['state_id'])->name,
+                'country' => Country::find($destination['country_id'])->name,
+            ]);
+        }
+
+        $city = City::where('id', $shipping_info['city_id'])->first();
         if ($city != null) {
             if ($product->added_by == 'admin') {
                 return $city->cost / count($admin_products);
