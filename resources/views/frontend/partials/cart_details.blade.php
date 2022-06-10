@@ -76,26 +76,9 @@
                         </ul>
                     </div>
 
-                    <div class="px-3 py-2 mb-4 border-top d-flex justify-content-between">
+                    <div class="px-3 py-2 border-top d-flex justify-content-between">
                         <span class="opacity-60 fs-15">{{translate('Subtotal')}}</span>
                         <span class="fw-600 fs-17">{{ single_price($total) }}</span>
-                    </div>
-                    <div class="row align-items-center">
-                        <div class="col-md-6 text-center text-md-left order-1 order-md-0">
-                            <a href="{{ route('home') }}" class="btn btn-link">
-                                <i class="las la-arrow-left"></i>
-                                {{ translate('Return to shop')}}
-                            </a>
-                        </div>
-                        <div class="col-md-6 text-center text-md-right">
-                            @if(Auth::check())
-                                <a href="{{ route('checkout.shipping_info') }}" class="btn btn-primary fw-600">
-                                    {{ translate('Continue to Shipping')}}
-                                </a>
-                            @else
-                                <button class="btn btn-primary fw-600" onclick="showCheckoutModal()">{{ translate('Continue to Shipping')}}</button>
-                            @endif
-                        </div>
                     </div>
                 </div>
             </div>

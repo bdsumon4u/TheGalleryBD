@@ -115,6 +115,20 @@ class CheckoutController extends Controller
 
     public function store_shipping_info(Request $request)
     {
+        if (Auth::check()) {
+            $carts = Cart::where('user_id', Auth::user()->id)->get();
+        } else {
+            $carts = Cart::where('temp_user_id', $request->session()->get('temp_user_id'))->get();
+        }
+
+        $this->_store_shipping_info($request, $carts);
+
+        return view('frontend.delivery_info', compact('carts'));
+        // return view('frontend.payment_select', compact('total'));
+    }
+
+    private function _store_shipping_info(Request $request, &$carts)
+    {
         $rules = [
             'name' => 'required',
             'address' => 'required',
@@ -134,20 +148,11 @@ class CheckoutController extends Controller
             );
         }
 
-        if (Auth::check()) {
-            $carts = Cart::where('user_id', Auth::user()->id)->get();
-        } else {
-            $carts = Cart::where('temp_user_id', $request->session()->get('temp_user_id'))->get();
-        }
-
         foreach ($carts as $key => $cartItem) {
             $cartItem->address_id = $request->address_id;
             $cartItem->destination = $address;
             $cartItem->save();
         }
-
-        return view('frontend.delivery_info', compact('carts'));
-        // return view('frontend.payment_select', compact('total'));
     }
 
     public function store_delivery_info(Request $request)
@@ -157,6 +162,8 @@ class CheckoutController extends Controller
         } else {
             $carts = Cart::where('temp_user_id', $request->session()->get('temp_user_id'))->get();
         }
+
+        $this->_store_shipping_info($request, $carts);
 
         if($carts->isEmpty()) {
             flash(translate('Your cart is empty'))->warning();
