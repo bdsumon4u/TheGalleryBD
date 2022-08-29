@@ -95,7 +95,14 @@ class OrderController extends Controller
             $delivery_status = $request->delivery_status;
         }
         if ($date != null) {
-            $orders = $orders->where('created_at', '>=', date('Y-m-d', strtotime(explode(" to ", $date)[0])))->where('created_at', '<=', date('Y-m-d', strtotime(explode(" to ", $date)[1])));
+            [$startD, $endD] = explode(" to ", $date, 2);
+            
+            if ($endD == null) {
+                $orders = $orders->where('created_at', '=', date('Y-m-d', strtotime($$startD)));
+            } else {
+                $orders = $orders->where('created_at', '>=', date('Y-m-d', strtotime($startD)))
+                    ->where('created_at', '<=', date('Y-m-d', strtotime($endD)));
+            }
         }
         $orders = $orders->paginate(15);
         return view('backend.sales.all_orders.index', compact('orders', 'sort_search', 'delivery_status', 'date'));
