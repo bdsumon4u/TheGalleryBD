@@ -25,7 +25,7 @@ use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SubscriberController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\WalletController;
-
+use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\Payment\AamarpayController;
 use App\Http\Controllers\Payment\AuthorizenetController;
 use App\Http\Controllers\Payment\BkashController;
