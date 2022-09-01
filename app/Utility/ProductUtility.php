@@ -24,7 +24,7 @@ class ProductUtility
             foreach ($collection['choice_no'] as $key => $no) {
                 $name = 'choice_options_' . $no;
                 $data = array();
-                foreach (request()[$name] as $key => $eachValue) {
+                foreach (request()[$name] ?? [] as $key => $eachValue) {
                     array_push($data, $eachValue);
                 }
                 array_push($options, $data);

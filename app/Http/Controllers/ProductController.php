@@ -485,7 +485,7 @@ class ProductController extends Controller
                 $name = 'choice_options_' . $no;
                 $data = array();
                 // foreach (json_decode($request[$name][0]) as $key => $item) {
-                foreach ($request[$name] as $key => $item) {
+                foreach ($request[$name] ?? [] as $key => $item) {
                     // array_push($data, $item->value);
                     array_push($data, $item);
                 }
@@ -517,7 +517,7 @@ class ProductController extends Controller
                 $name = 'choice_options_' . $no;
                 $data = array();
                 // foreach (json_decode($request[$name][0]) as $key => $item) {
-                foreach ($request[$name] as $key => $item) {
+                foreach ($request[$name] ?? [] as $key => $item) {
                     // array_push($data, $item->value);
                     array_push($data, $item);
                 }
