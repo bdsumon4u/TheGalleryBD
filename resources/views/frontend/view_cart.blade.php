@@ -241,7 +241,7 @@
                                                 </div>
                                             </div>
 
-                                            <div class="row">
+                                            <div class="row d-none">
                                                 <div class="col-md-2">
                                                     <label>{{ translate('State')}}</label>
                                                 </div>
@@ -701,7 +701,7 @@
                             </div>
                         </div>
 
-                        <div class="row">
+                        <div class="row d-none">
                             <div class="col-md-2">
                                 <label>{{ translate('State')}}</label>
                             </div>
@@ -895,8 +895,8 @@
     <script type="text/javascript">
         $(document).ready(function() {
             var country_id = $('[name=country_id]').val();
-            console.log(country_id)
             get_states(country_id);
+            get_city();
         });
 
         function removeFromCartView(e, key){

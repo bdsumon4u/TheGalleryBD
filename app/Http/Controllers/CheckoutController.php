@@ -60,11 +60,11 @@ class CheckoutController extends Controller
             if ($request->session()->get('combined_order_id') != null) {
 
                 // If block for Online payment, wallet and cash on delivery. Else block for Offline payment
-                $decorator = __NAMESPACE__ . '\\Payment\\' . str_replace(' ', '', ucwords(str_replace('_', ' ', $request->payment_option))) . "Controller";
-                if (class_exists($decorator)) {
-                    return (new $decorator)->pay($request);
-                }
-                else {
+                #$decorator = __NAMESPACE__ . '\\Payment\\' . str_replace(' ', '', ucwords(str_replace('_', ' ', $request->payment_option))) . "Controller";
+                #if (class_exists($decorator)) {
+                #    return (new $decorator)->pay($request);
+                #}
+                #else {
                     $combined_order = CombinedOrder::findOrFail($request->session()->get('combined_order_id'));
                     foreach ($combined_order->orders as $order) {
                         $order->manual_payment = 1;
@@ -72,7 +72,7 @@ class CheckoutController extends Controller
                     }
                     flash(translate('Your order has been placed successfully. Please submit payment information from purchase history'))->success();
                     return redirect()->route('order_confirmed');
-                }
+                #}
             }
         } else {
             flash(translate('Select Payment Option.'))->warning();
@@ -134,7 +134,7 @@ class CheckoutController extends Controller
             'address' => 'required',
             'country_id' => 'required|integer',
             'state_id' => 'required|integer',
-            'city_id' => 'required|integer',
+            // 'city_id' => 'required|integer',
             'postal_code' => 'nullable',
             'phone' => 'required',
         ];
@@ -174,7 +174,8 @@ class CheckoutController extends Controller
             $shipping_info = Address::where('id', $carts[0]['address_id'])->first();
         } else {
             $shipping_info = array_merge($destination = $carts[0]['destination'], [
-                'city' => City::find($destination['city_id'])->name,
+                // 'city' => City::find($destination['city_id'])->name,
+                'city' => 'N/A',
                 'state' => State::find($destination['state_id'])->name,
                 'country' => Country::find($destination['country_id'])->name,
             ]);

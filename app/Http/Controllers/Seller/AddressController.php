@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Seller;
 use Illuminate\Http\Request;
 use App\Models\Address;
 use App\Models\City;
+use App\Models\Country;
 use App\Models\State;
 use Auth;
 
@@ -105,7 +106,17 @@ class AddressController extends Controller
     }
     
     public function getCities(Request $request) {
-        $cities = City::where('status', 1)->where('state_id', $request->state_id)->get();
+        if (! $state_id = $request->state_id) {
+            $state_id = State::query()->firstOrCreate([
+                'name' => 'Default',
+                'status' => 1,
+                'country_id' => Country::firstOrCreate([
+                    'name' => 'Bangladesh',
+                    'status' => 1,
+                ])->id,
+            ])->id;
+        }
+        $cities = City::where('status', 1)->where('state_id', $state_id)->get();
         $html = '<option value="">'.translate("Select City").'</option>';
         
         foreach ($cities as $row) {
