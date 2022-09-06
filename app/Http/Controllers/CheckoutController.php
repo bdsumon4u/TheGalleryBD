@@ -134,7 +134,7 @@ class CheckoutController extends Controller
             'address' => 'required',
             'country_id' => 'required|integer',
             'state_id' => 'required|integer',
-            // 'city_id' => 'required|integer',
+            'city_id' => 'required|integer',
             'postal_code' => 'nullable',
             'phone' => 'required',
         ];
@@ -174,8 +174,7 @@ class CheckoutController extends Controller
             $shipping_info = Address::where('id', $carts[0]['address_id'])->first();
         } else {
             $shipping_info = array_merge($destination = $carts[0]['destination'], [
-                // 'city' => City::find($destination['city_id'])->name,
-                'city' => 'N/A',
+                'city' => City::find($destination['city_id'])->name,
                 'state' => State::find($destination['state_id'])->name,
                 'country' => Country::find($destination['country_id'])->name,
             ]);

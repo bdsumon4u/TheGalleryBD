@@ -311,8 +311,7 @@ class OrderController extends Controller
             $address = Address::where('id', $carts[0]['address_id'])->first();
         } else {
             $address = (object)array_merge($destination = $carts[0]['destination'], [
-                // 'city' => City::find($destination['city_id']),
-                'city' => 'N/A',
+                'city' => City::find($destination['city_id']),
                 'state' => State::find($destination['state_id']),
                 'country' => Country::find($destination['country_id']),
                 'latitude' => null, 'longitude' => null,
@@ -326,7 +325,7 @@ class OrderController extends Controller
             $shippingAddress['address']     = $address->address;
             $shippingAddress['country']     = $address->country->name;
             $shippingAddress['state']       = $address->state->name;
-            $shippingAddress['city']        = 'N/A'; //$address->city->name;
+            $shippingAddress['city']        = $address->city->name;
             $shippingAddress['postal_code'] = $address->postal_code;
             $shippingAddress['phone']       = $address->phone;
             if ($address->latitude || $address->longitude) {

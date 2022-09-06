@@ -534,21 +534,20 @@ function getShippingCost($carts, $index)
             $shipping_info = Address::where('id', $carts[0]['address_id'])->first();
         } else {
             $shipping_info = array_merge($destination = $carts[0]['destination'], [
-                // 'city' => City::find($destination['city_id'])->name,
-                'city' => 'N/A',
+                'city' => City::find($destination['city_id'])->name,
                 'state' => State::find($destination['state_id'])->name,
                 'country' => Country::find($destination['country_id'])->name,
             ]);
         }
 
-        // $city = City::where('id', $shipping_info['city_id'])->first();
-        // if ($city != null) {
-        //     if ($product->added_by == 'admin') {
-        //         return $city->cost / count($admin_products);
-        //     } else {
-        //         return $city->cost / count($seller_products[$product->user_id]);
-        //     }
-        // }
+        $city = City::where('id', $shipping_info['city_id'])->first();
+        if ($city != null) {
+            if ($product->added_by == 'admin') {
+                return $city->cost / count($admin_products);
+            } else {
+                return $city->cost / count($seller_products[$product->user_id]);
+            }
+        }
         return 0;
     } else {
         if ($product->is_quantity_multiplied && get_setting('shipping_type') == 'product_wise_shipping') {
