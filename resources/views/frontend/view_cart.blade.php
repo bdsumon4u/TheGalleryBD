@@ -335,7 +335,7 @@
                                     }
                                 @endphp
 
-                                @if (!empty($admin_products))
+                                @if (!empty($admin_products) && !empty($pickup_point_list))
                                     <div class="card mb-3 shadow-sm border-0 rounded">
                                         <div class="card-header p-3">
                                             <h5 class="fs-16 fw-600 mb-0">{{ get_setting('site_name') }} {{ translate('Products') }}</h5>
@@ -532,7 +532,7 @@
                                     <i class="la la-angle-left"></i>
                                     {{ translate('Return to shop')}}
                                 </a>
-                                <button type="submit" class="btn fw-600 btn-primary">{{ translate('Checkout')}}</button>
+                                <button type="submit" class="btn fw-600 btn-primary">{{ translate('Next Step')}}</button>
                             </div>
                         </form>
                     </div>
