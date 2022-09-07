@@ -219,10 +219,10 @@
                                             </div>
                                             <div class="row">
                                                 <div class="col-md-2">
-                                                    <label>{{ translate('Address')}}</label>
+                                                    <label>{{ translate('Phone')}}</label>
                                                 </div>
                                                 <div class="col-md-10">
-                                                    <textarea class="form-control mb-3" placeholder="{{ translate('Your Address')}}" rows="2" name="address" required></textarea>
+                                                    <input type="text" class="form-control mb-3" placeholder="{{ translate('+880')}}" name="phone" value="" required>
                                                 </div>
                                             </div>
                                             <div class="row d-none">
@@ -298,10 +298,10 @@
 
                                             <div class="row">
                                                 <div class="col-md-2">
-                                                    <label>{{ translate('Phone')}}</label>
+                                                    <label>{{ translate('Address')}}</label>
                                                 </div>
                                                 <div class="col-md-10">
-                                                    <input type="text" class="form-control mb-3" placeholder="{{ translate('+880')}}" name="phone" value="" required>
+                                                    <textarea class="form-control mb-3" placeholder="{{ translate('Your Address')}}" rows="2" name="address" required></textarea>
                                                 </div>
                                             </div>
                                         </div>
