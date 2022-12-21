@@ -226,6 +226,7 @@ class CheckoutController extends Controller
 
             }
             $total = $subtotal + $tax + $shipping;
+            return $this->checkout($request->merge(['payment_option' => 'cash_on_delivery']));
             return view('frontend.payment_select', compact('carts', 'shipping_info', 'total'));
 
         } else {
