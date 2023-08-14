@@ -312,8 +312,8 @@ class OrderController extends Controller
         } else {
             $address = (object)array_merge($destination = $carts[0]['destination'], [
                 'city' => City::find($destination['city_id']),
-                'state' => State::find($destination['state_id']),
-                'country' => Country::find($destination['country_id']),
+                'state' => ':', // State::find($destination['state_id']),
+                'country' => 'Bangladesh', // Country::find($destination['country_id']),
                 'latitude' => null, 'longitude' => null,
             ]);
         }
@@ -323,8 +323,8 @@ class OrderController extends Controller
             $shippingAddress['name']        = Auth::user()->name ?? data_get($address, 'name');
             $shippingAddress['email']       = Auth::user()->email ?? 'N/A';
             $shippingAddress['address']     = $address->address;
-            $shippingAddress['country']     = $address->country->name;
-            $shippingAddress['state']       = $address->state->name;
+            $shippingAddress['country']     = $address->country->name ?? 'Bangladesh';
+            $shippingAddress['state']       = $address->state->name ?? ':';
             $shippingAddress['city']        = $address->city->name;
             $shippingAddress['postal_code'] = $address->postal_code;
             $shippingAddress['phone']       = $address->phone;

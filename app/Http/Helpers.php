@@ -1,28 +1,36 @@
 <?php
 
-use App\Http\Controllers\ClubPointController;
-use App\Http\Controllers\AffiliateController;
-use App\Http\Controllers\CommissionController;
-use App\Models\Country;
-use App\Models\Currency;
-use App\Models\BusinessSetting;
-use App\Models\ProductStock;
-use App\Models\Address;
-use App\Models\CustomerPackage;
-use App\Models\State;
-use App\Models\Upload;
-use App\Models\Translation;
+use Carbon\Carbon;
+use App\Models\Cart;
 use App\Models\City;
-use App\Utility\CategoryUtility;
-use App\Models\Wallet;
-use App\Models\CombinedOrder;
+use App\Models\Shop;
 use App\Models\User;
 use App\Models\Addon;
+use App\Models\Coupon;
+use App\Models\Seller;
+use App\Models\Upload;
+use App\Models\Wallet;
+use App\Models\Address;
+use App\Models\Carrier;
+use App\Models\Country;
 use App\Models\Product;
-use App\Models\Shop;
+use App\Models\Currency;
+use App\Models\CouponUsage;
+use App\Models\Translation;
+use App\Models\ProductStock;
+use App\Models\CombinedOrder;
+use App\Models\SellerPackage;
+use App\Models\BusinessSetting;
+use App\Models\CustomerPackage;
 use App\Utility\SendSMSUtility;
+use App\Utility\CategoryUtility;
+use App\Models\SellerPackagePayment;
 use App\Utility\NotificationUtility;
-use Carbon\Carbon;
+use App\Http\Resources\V2\CarrierCollection;
+use App\Http\Controllers\AffiliateController;
+use App\Http\Controllers\ClubPointController;
+use App\Http\Controllers\CommissionController;
+use App\Models\State;
 
 //sensSMS function for OTP
 if (!function_exists('sendSMS')) {
@@ -86,11 +94,14 @@ if (!function_exists('filter_products')) {
     {
         $verified_sellers = verified_sellers_id();
         if (get_setting('vendor_system_activation') == 1) {
-            return $products->where('approved', '1')->where('published', '1')->where('auction_product', 0)->orderBy('created_at', 'desc')->where(function ($p) use ($verified_sellers) {
-                $p->where('added_by', 'admin')->orWhere(function ($q) use ($verified_sellers) {
-                    $q->whereIn('user_id', $verified_sellers);
+            return $products->where('approved', '1')
+                ->where('published', '1')
+                ->where('auction_product', 0)
+                ->where(function ($p) use ($verified_sellers) {
+                    $p->where('added_by', 'admin')->orWhere(function ($q) use ($verified_sellers) {
+                        $q->whereIn('user_id', $verified_sellers);
+                    });
                 });
-            });
         } else {
             return $products->where('published', '1')->where('auction_product', 0)->where('added_by', 'admin');
         }
@@ -99,8 +110,9 @@ if (!function_exists('filter_products')) {
 
 //cache products based on category
 if (!function_exists('get_cached_products')) {
-    function get_cached_products($category_id = null)
+    function get_cached_products($category_id = null, $number = null)
     {
+        $number = $number != null ? $number : 12;
         $products = \App\Models\Product::where('published', 1)->where('approved', '1')->where('auction_product', 0);
         $verified_sellers = verified_sellers_id();
         if (get_setting('vendor_system_activation') == 1) {
@@ -114,14 +126,14 @@ if (!function_exists('get_cached_products')) {
         }
 
         if ($category_id != null) {
-            return Cache::remember('products-category-' . $category_id, 86400, function () use ($category_id, $products) {
+            return Cache::remember('products-category-' . $category_id, 86400, function () use ($category_id, $products, $number) {
                 $category_ids = CategoryUtility::children_ids($category_id);
                 $category_ids[] = $category_id;
-                return $products->whereIn('category_id', $category_ids)->latest()->take(12)->get();
+                return $products->whereIn('category_id', $category_ids)->latest()->take($number)->get();
             });
         } else {
-            return Cache::remember('products', 86400, function () use ($products) {
-                return $products->latest()->take(12)->get();
+            return Cache::remember('products', 86400, function () use ($products, $number) {
+                return $products->latest()->take($number)->get();
             });
         }
     }
@@ -170,12 +182,28 @@ if (!function_exists('currency_symbol')) {
 
 //formats currency
 if (!function_exists('format_price')) {
-    function format_price($price)
+    function format_price($price, $isMinimize = false)
     {
+        return $price;
         if (get_setting('decimal_separator') == 1) {
             $fomated_price = number_format($price, get_setting('no_of_decimals'));
         } else {
-            $fomated_price = number_format($price, get_setting('no_of_decimals'), ',', ' ');
+            $fomated_price = number_format($price, get_setting('no_of_decimals'), ',', '.');
+        }
+
+
+        // Minimize the price 
+        if ($isMinimize) {
+            $temp = number_format($price / 1000000000, get_setting('no_of_decimals'), ".", "");
+
+            if ($temp >= 1) {
+                $fomated_price = $temp . "B";
+            } else {
+                $temp = number_format($price / 1000000, get_setting('no_of_decimals'), ".", "");
+                if ($temp >= 1) {
+                    $fomated_price = $temp . "M";
+                }
+            }
         }
 
         if (get_setting('symbol_format') == 1) {
@@ -188,6 +216,7 @@ if (!function_exists('format_price')) {
         return $fomated_price . currency_symbol();
     }
 }
+
 
 //formats price to home default price with convertion
 if (!function_exists('single_price')) {
@@ -205,6 +234,278 @@ if (!function_exists('discount_in_percentage')) {
         $discount = $base - $reduced;
         $dp = ($discount * 100) / ($base > 0 ? $base : 1);
         return round($dp);
+    }
+}
+
+//Shows Price on page based on carts
+if (!function_exists('cart_product_price')) {
+    function cart_product_price($cart_product, $product, $formatted = true, $tax = true)
+    {
+        if ($product->auction_product == 0) {
+            $str = '';
+            if ($cart_product['variation'] != null) {
+                $str = $cart_product['variation'];
+            }
+            $price = 0;
+            $product_stock = $product->stocks->where('variant', $str)->first();
+            if ($product_stock) {
+                $price = $product_stock->price;
+            }
+
+
+            //discount calculation
+            $discount_applicable = false;
+
+            if ($product->discount_start_date == null) {
+                $discount_applicable = true;
+            } elseif (
+                strtotime(date('d-m-Y H:i:s')) >= $product->discount_start_date &&
+                strtotime(date('d-m-Y H:i:s')) <= $product->discount_end_date
+            ) {
+                $discount_applicable = true;
+            }
+
+            if ($discount_applicable) {
+                if ($product->discount_type == 'percent') {
+                    $price -= ($price * $product->discount) / 100;
+                } elseif ($product->discount_type == 'amount') {
+                    $price -= $product->discount;
+                }
+            }
+        } else {
+            $price = $product->bids->max('amount');
+        }
+
+        //calculation of taxes 
+        if ($tax) {
+            $taxAmount = 0;
+            foreach ($product->taxes as $product_tax) {
+                if ($product_tax->tax_type == 'percent') {
+                    $taxAmount += ($price * $product_tax->tax) / 100;
+                } elseif ($product_tax->tax_type == 'amount') {
+                    $taxAmount += $product_tax->tax;
+                }
+            }
+            $price += $taxAmount;
+        }
+
+        if ($formatted) {
+            return format_price(convert_price($price));
+        } else {
+            return $price;
+        }
+    }
+}
+
+if (!function_exists('cart_product_tax')) {
+    function cart_product_tax($cart_product, $product, $formatted = true)
+    {
+        $str = '';
+        if ($cart_product['variation'] != null) {
+            $str = $cart_product['variation'];
+        }
+        $product_stock = $product->stocks->where('variant', $str)->first();
+        $price = $product_stock->price;
+
+        //discount calculation
+        $discount_applicable = false;
+
+        if ($product->discount_start_date == null) {
+            $discount_applicable = true;
+        } elseif (
+            strtotime(date('d-m-Y H:i:s')) >= $product->discount_start_date &&
+            strtotime(date('d-m-Y H:i:s')) <= $product->discount_end_date
+        ) {
+            $discount_applicable = true;
+        }
+
+        if ($discount_applicable) {
+            if ($product->discount_type == 'percent') {
+                $price -= ($price * $product->discount) / 100;
+            } elseif ($product->discount_type == 'amount') {
+                $price -= $product->discount;
+            }
+        }
+
+        //calculation of taxes 
+        $tax = 0;
+        foreach ($product->taxes as $product_tax) {
+            if ($product_tax->tax_type == 'percent') {
+                $tax += ($price * $product_tax->tax) / 100;
+            } elseif ($product_tax->tax_type == 'amount') {
+                $tax += $product_tax->tax;
+            }
+        }
+
+        if ($formatted) {
+            return format_price(convert_price($tax));
+        } else {
+            return $tax;
+        }
+    }
+}
+
+if (!function_exists('cart_product_discount')) {
+    function cart_product_discount($cart_product, $product, $formatted = false)
+    {
+        $str = '';
+        if ($cart_product['variation'] != null) {
+            $str = $cart_product['variation'];
+        }
+        $product_stock = $product->stocks->where('variant', $str)->first();
+        $price = $product_stock->price;
+
+        //discount calculation
+        $discount_applicable = false;
+        $discount = 0;
+
+        if ($product->discount_start_date == null) {
+            $discount_applicable = true;
+        } elseif (
+            strtotime(date('d-m-Y H:i:s')) >= $product->discount_start_date &&
+            strtotime(date('d-m-Y H:i:s')) <= $product->discount_end_date
+        ) {
+            $discount_applicable = true;
+        }
+
+        if ($discount_applicable) {
+            if ($product->discount_type == 'percent') {
+                $discount = ($price * $product->discount) / 100;
+            } elseif ($product->discount_type == 'amount') {
+                $discount = $product->discount;
+            }
+        }
+
+        if ($formatted) {
+            return format_price(convert_price($discount));
+        } else {
+            return $discount;
+        }
+    }
+}
+
+// all discount
+if (!function_exists('carts_product_discount')) {
+    function carts_product_discount($cart_products, $formatted = false)
+    {
+        $discount = 0;
+        foreach ($cart_products as $key => $cart_product) {
+            $str = '';
+            $product = \App\Models\Product::find($cart_product['product_id']);
+            if ($cart_product['variation'] != null) {
+                $str = $cart_product['variation'];
+            }
+            $product_stock = $product->stocks->where('variant', $str)->first();
+            $price = $product_stock->price;
+
+            //discount calculation
+            $discount_applicable = false;
+
+            if ($product->discount_start_date == null) {
+                $discount_applicable = true;
+            } elseif (
+                strtotime(date('d-m-Y H:i:s')) >= $product->discount_start_date &&
+                strtotime(date('d-m-Y H:i:s')) <= $product->discount_end_date
+            ) {
+                $discount_applicable = true;
+            }
+
+            if ($discount_applicable) {
+                if ($product->discount_type == 'percent') {
+                    $discount += ($price * $product->discount) / 100;
+                } elseif ($product->discount_type == 'amount') {
+                    $discount += $product->discount;
+                }
+            }
+        }
+
+        if ($formatted) {
+            return format_price(convert_price($discount));
+        } else {
+            return $discount;
+        }
+    }
+}
+
+if (!function_exists('carts_coupon_discount')) {
+    function carts_coupon_discount($code, $formatted = false)
+    {
+        if (Auth::check()) {
+            $cart = Cart::where('user_id', Auth::user()->id);
+        } else {
+            $cart = Cart::where('temp_user_id', $request->session()->get('temp_user_id'));
+        }
+        $coupon = Coupon::where('code', $code)->first();
+        $coupon_discount = 0;
+        if ($coupon != null) {
+            if (strtotime(date('d-m-Y')) >= $coupon->start_date && strtotime(date('d-m-Y')) <= $coupon->end_date) {
+                if (CouponUsage::where('user_id', Auth::user()->id)->where('coupon_id', $coupon->id)->first() == null) {
+                    $coupon_details = json_decode($coupon->details);
+
+                    $carts = $cart->where('owner_id', $coupon->user_id)->get();
+
+                    if ($coupon->type == 'cart_base') {
+                        $subtotal = 0;
+                        $tax = 0;
+                        $shipping = 0;
+                        foreach ($carts as $key => $cartItem) {
+                            $product = Product::find($cartItem['product_id']);
+                            $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+                            $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
+                            $shipping += $cartItem['shipping_cost'];
+                        }
+                        $sum = $subtotal + $tax + $shipping;
+
+                        if ($sum >= $coupon_details->min_buy) {
+                            if ($coupon->discount_type == 'percent') {
+                                $coupon_discount = ($sum * $coupon->discount) / 100;
+                                if ($coupon_discount > $coupon_details->max_discount) {
+                                    $coupon_discount = $coupon_details->max_discount;
+                                }
+                            } elseif ($coupon->discount_type == 'amount') {
+                                $coupon_discount = $coupon->discount;
+                            }
+                        }
+                    } elseif ($coupon->type == 'product_base') {
+                        foreach ($carts as $key => $cartItem) {
+                            $product = Product::find($cartItem['product_id']);
+                            foreach ($coupon_details as $key => $coupon_detail) {
+                                if ($coupon_detail->product_id == $cartItem['product_id']) {
+                                    if ($coupon->discount_type == 'percent') {
+                                        $coupon_discount += (cart_product_price($cartItem, $product, false, false) * $coupon->discount / 100) * $cartItem['quantity'];
+                                    } elseif ($coupon->discount_type == 'amount') {
+                                        $coupon_discount += $coupon->discount * $cartItem['quantity'];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if ($coupon_discount > 0) {
+                $cart->where('owner_id', $coupon->user_id)
+                    ->update(
+                        [
+                            'discount' => $coupon_discount / count($carts),
+                        ]
+                    );
+            } else {
+                $cart->where('owner_id', $coupon->user_id)
+                    ->update(
+                        [
+                            'discount' => 0,
+                            'coupon_code' => null,
+                        ]
+                    );
+            }
+        }
+
+        if ($formatted) {
+            return format_price(convert_price($coupon_discount));
+        } else {
+            return $coupon_discount;
+        }
     }
 }
 
@@ -495,10 +796,15 @@ function remove_invalid_charcaters($str)
     return str_ireplace(array('"'), '\"', $str);
 }
 
-function getShippingCost($carts, $index)
+function getShippingCost($carts, $index, $carrier = '')
 {
+    $shipping_type = get_setting('shipping_type');
     $admin_products = array();
     $seller_products = array();
+    $admin_product_total_weight = 0;
+    $admin_product_total_price = 0;
+    $seller_product_total_weight = array();
+    $seller_product_total_price = array();
 
     $cartItem = $carts[$index];
     $product = Product::find($cartItem['product_id']);
@@ -511,32 +817,56 @@ function getShippingCost($carts, $index)
         $item_product = Product::find($cart_item['product_id']);
         if ($item_product->added_by == 'admin') {
             array_push($admin_products, $cart_item['product_id']);
+
+            // For carrier wise shipping
+            if ($shipping_type == 'carrier_wise_shipping') {
+                $admin_product_total_weight += ($item_product->weight * $cart_item['quantity']);
+                $admin_product_total_price += (cart_product_price($cart_item, $item_product, false, false) * $cart_item['quantity']);
+            }
         } else {
             $product_ids = array();
+            $weight = 0;
+            $price = 0;
             if (isset($seller_products[$item_product->user_id])) {
                 $product_ids = $seller_products[$item_product->user_id];
+
+                // For carrier wise shipping
+                if ($shipping_type == 'carrier_wise_shipping') {
+                    $weight += $seller_product_total_weight[$item_product->user_id];
+                    $price += $seller_product_total_price[$item_product->user_id];
+                }
             }
+
             array_push($product_ids, $cart_item['product_id']);
             $seller_products[$item_product->user_id] = $product_ids;
+
+            // For carrier wise shipping
+            if ($shipping_type == 'carrier_wise_shipping') {
+                $weight += ($item_product->weight * $cart_item['quantity']);
+                $seller_product_total_weight[$item_product->user_id] = $weight;
+
+                $price += (cart_product_price($cart_item, $item_product, false, false) * $cart_item['quantity']);
+                $seller_product_total_price[$item_product->user_id] = $price;
+            }
         }
     }
 
-    if (get_setting('shipping_type') == 'flat_rate') {
+    if ($shipping_type == 'flat_rate') {
         return get_setting('flat_rate_shipping_cost') / count($carts);
-    } elseif (get_setting('shipping_type') == 'seller_wise_shipping') {
+    } elseif ($shipping_type == 'seller_wise_shipping') {
         if ($product->added_by == 'admin') {
             return get_setting('shipping_cost_admin') / count($admin_products);
         } else {
             return Shop::where('user_id', $product->user_id)->first()->shipping_cost / count($seller_products[$product->user_id]);
         }
-    } elseif (get_setting('shipping_type') == 'area_wise_shipping') {
+    } elseif ($shipping_type == 'area_wise_shipping') {
         if (Auth::check()) {
             $shipping_info = Address::where('id', $carts[0]['address_id'])->first();
         } else {
             $shipping_info = array_merge($destination = $carts[0]['destination'], [
                 'city' => City::find($destination['city_id'])->name,
-                'state' => State::find($destination['state_id'])->name,
-                'country' => Country::find($destination['country_id'])->name,
+                'state' => ':', // State::find($destination['state_id'])->name,
+                'country' => 'Bangladesh', // Country::find($destination['country_id'])->name,
             ]);
         }
 
@@ -549,11 +879,68 @@ function getShippingCost($carts, $index)
             }
         }
         return 0;
+    } elseif ($shipping_type == 'carrier_wise_shipping') { // carrier wise shipping
+        $user_zone = Address::where('id', $carts[0]['address_id'])->first()->country->zone_id;
+        if ($carrier == null || $user_zone == 0) {
+            return 0;
+        }
+
+        $carrier = Carrier::find($carrier);
+        if ($carrier->carrier_ranges->first()) {
+            $carrier_billing_type   = $carrier->carrier_ranges->first()->billing_type;
+            if ($product->added_by == 'admin') {
+                $itemsWeightOrPrice = $carrier_billing_type == 'weight_based' ? $admin_product_total_weight : $admin_product_total_price;
+            } else {
+                $itemsWeightOrPrice = $carrier_billing_type == 'weight_based' ? $seller_product_total_weight[$product->user_id] : $seller_product_total_price[$product->user_id];
+            }
+        }
+
+        foreach ($carrier->carrier_ranges as $carrier_range) {
+            if ($itemsWeightOrPrice >= $carrier_range->delimiter1 && $itemsWeightOrPrice < $carrier_range->delimiter2) {
+                $carrier_price = $carrier_range->carrier_range_prices->where('zone_id', $user_zone)->first()->price;
+                return $product->added_by == 'admin' ? ($carrier_price / count($admin_products)) : ($carrier_price / count($seller_products[$product->user_id]));
+            }
+        }
+        return 0;
     } else {
-        if ($product->is_quantity_multiplied && get_setting('shipping_type') == 'product_wise_shipping') {
+        if ($product->is_quantity_multiplied && ($shipping_type == 'product_wise_shipping')) {
             return  $product->shipping_cost * $cartItem['quantity'];
         }
         return $product->shipping_cost;
+    }
+}
+
+//return carrier wise shipping cost against seller
+if (!function_exists('carrier_base_price')) {
+    function carrier_base_price($carts, $carrier_id, $owner_id)
+    {
+        $shipping = 0;
+        foreach ($carts as $key => $cartItem) {
+            if ($cartItem->owner_id == $owner_id) {
+                $shipping_cost = getShippingCost($carts, $key, $carrier_id);
+                $shipping += $shipping_cost;
+            }
+        }
+        return $shipping;
+    }
+}
+
+//return seller wise carrier list
+if (!function_exists('seller_base_carrier_list')) {
+    function seller_base_carrier_list($owner_id)
+    {
+        $carrier_list = array();
+        $carts = Cart::where('user_id', auth()->user()->id)->get();
+        if (count($carts) > 0) {
+            $zone = $carts[0]['address'] ? Country::where('id', $carts[0]['address']['country_id'])->first()->zone_id : null;
+            $carrier_query = Carrier::query();
+            $carrier_query->whereIn('id', function ($query) use ($zone) {
+                $query->select('carrier_id')->from('carrier_range_prices')
+                    ->where('zone_id', $zone);
+            })->orWhere('free_shipping', 1);
+            $carrier_list = $carrier_query->active()->get();
+        }
+        return (new CarrierCollection($carrier_list))->extra($owner_id);
     }
 }
 
@@ -576,7 +963,7 @@ if (!function_exists('uploaded_asset')) {
         if (($asset = \App\Models\Upload::find($id)) != null) {
             return $asset->external_link == null ? my_asset($asset->file_name) : $asset->external_link;
         }
-        return null;
+        return static_asset('assets/img/placeholder.jpg');
     }
 }
 
@@ -593,7 +980,7 @@ if (!function_exists('my_asset')) {
         if (env('FILESYSTEM_DRIVER') == 's3') {
             return Storage::disk('s3')->url($path);
         } else {
-            return static_asset($path, $secure);
+            return app('url')->asset('public/' . $path, $secure);
         }
     }
 }
@@ -641,9 +1028,6 @@ if (!function_exists('getFileBaseURL')) {
         if (env('FILESYSTEM_DRIVER') == 's3') {
             return env('AWS_URL') . '/';
         } else {
-            if (get_current_user() === 'sail') {
-                return getBaseURL();
-            }
             return getBaseURL() . 'public/';
         }
     }
@@ -810,6 +1194,38 @@ if (!function_exists('purchase_payment_done')) {
     }
 }
 
+if (!function_exists('seller_purchase_payment_done')) {
+    function seller_purchase_payment_done($user_id, $seller_package_id, $amount, $payment_method, $payment_details)
+    {
+        $seller = Shop::where('user_id', $user_id)->first();
+        $seller->seller_package_id = $seller_package_id;
+        $seller_package = SellerPackage::findOrFail($seller_package_id);
+        $seller->product_upload_limit = $seller_package->product_upload_limit;
+        $seller->package_invalid_at = date('Y-m-d', strtotime($seller->package_invalid_at . ' +' . $seller_package->duration . 'days'));
+        $seller->save();
+
+        $seller_package = new SellerPackagePayment();
+        $seller_package->user_id = $user_id;
+        $seller_package->seller_package_id = $seller_package_id;
+        $seller_package->payment_method = $payment_method;
+        $seller_package->payment_details = $payment_details;
+        $seller_package->approval = 1;
+        $seller_package->offline_payment = 2;
+        $seller_package->save();
+    }
+}
+
+if (!function_exists('customer_purchase_payment_done')) {
+    function customer_purchase_payment_done($user_id, $customer_package_id)
+    {
+        $user = User::findOrFail($user_id);
+        $user->customer_package_id = $customer_package_id;
+        $customer_package = CustomerPackage::findOrFail($customer_package_id);
+        $user->remaining_uploads += $customer_package->product_upload;
+        $user->save();
+    }
+}
+
 if (!function_exists('product_restock')) {
     function product_restock($orderDetail)
     {
@@ -881,5 +1297,16 @@ if (!function_exists('seller_package_validity_check')) {
         return $package_validation;
         // Ture = Seller package is valid and seller has the product upload limit
         // False = Seller package is invalid or seller product upload limit exists.
+    }
+}
+
+// Get URL params
+if (!function_exists('get_url_params')) {
+    function get_url_params($url, $key)
+    {
+        $query_str = parse_url($url, PHP_URL_QUERY);
+        parse_str($query_str, $query_params);
+
+        return $query_params[$key] ?? '';
     }
 }

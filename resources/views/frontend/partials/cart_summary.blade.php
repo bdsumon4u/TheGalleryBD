@@ -39,7 +39,6 @@
                     $tax = 0;
                     $shipping = 0;
                     $product_shipping_cost = 0;
-                    $shipping_region = $shipping_info['city'];
                 @endphp
                 @foreach ($carts as $key => $cartItem)
                     @php

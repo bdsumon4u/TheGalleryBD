@@ -132,8 +132,8 @@ class CheckoutController extends Controller
         $rules = [
             'name' => 'required',
             'address' => 'required',
-            'country_id' => 'required|integer',
-            'state_id' => 'required|integer',
+            // 'country_id' => 'required|integer',
+            // 'state_id' => 'required|integer',
             'city_id' => 'required|integer',
             'postal_code' => 'nullable',
             'phone' => 'required',
@@ -175,8 +175,8 @@ class CheckoutController extends Controller
         } else {
             $shipping_info = array_merge($destination = $carts[0]['destination'], [
                 'city' => City::find($destination['city_id'])->name,
-                'state' => State::find($destination['state_id'])->name,
-                'country' => Country::find($destination['country_id'])->name,
+                'state' => ':', // State::find($destination['state_id'])->name,
+                'country' => 'Bangladesh', // Country::find($destination['country_id'])->name,
             ]);
         }
 
