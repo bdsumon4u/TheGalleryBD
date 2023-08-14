@@ -532,7 +532,7 @@
                                     <i class="la la-angle-left"></i>
                                     {{ translate('Return to shop')}}
                                 </a>
-                                <button type="submit" class="btn fw-600 btn-primary">{{ translate('Next Step')}}</button>
+                                <button type="submit" class="btn fw-600 btn-primary">{{ translate('Confirm Order')}}</button>
                             </div>
                         </form>
                     </div>
