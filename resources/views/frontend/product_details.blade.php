@@ -105,241 +105,184 @@
                                 {{ $detailedProduct->getTranslation('name') }}
                             </h1>
 
-                            @if ($detailedProduct->wholesale_product)
-                                <table class="table mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th>{{ translate('Min Qty') }}</th>
-                                            <th>{{ translate('Max Qty') }}</th>
-                                            <th>{{ translate('Unit Price') }}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach ($detailedProduct->stocks->first()->wholesalePrices as $wholesalePrice)
-                                            <tr>
-                                                <td>{{ $wholesalePrice->min_qty }}</td>
-                                                <td>{{ $wholesalePrice->max_qty }}</td>
-                                                <td>{{ single_price($wholesalePrice->price) }}</td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            @else
-                                @if(home_price($detailedProduct) != home_discounted_price($detailedProduct))
-                                    <div class="row no-gutters">
-                                        <div class="col-sm-2">
-                                            <div class="opacity-50">{{ translate('Price')}}:</div>
-                                        </div>
-                                        <div class="col-sm-10">
-                                            <div class="fs-20 opacity-60">
-                                                <del>
-                                                    {{ home_price($detailedProduct) }}
-                                                    @if($detailedProduct->unit != null)
-                                                        <span>/{{ $detailedProduct->getTranslation('unit') }}</span>
-                                                    @endif
-                                                </del>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="row no-gutters">
-                                        <div class="col-sm-2">
-                                            <div class="opacity-50">{{ translate('Discount Price')}}:</div>
-                                        </div>
-                                        <div class="col-sm-10">
-                                            <div class="">
-                                                <strong class="fs-20 fw-600 text-primary">
-                                                    {{ home_discounted_price($detailedProduct) }}
-                                                </strong>
-                                                @if($detailedProduct->unit != null)
-                                                    <span class="opacity-70">/{{ $detailedProduct->getTranslation('unit') }}</span>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </div>
-                                @else
-                                    <div class="row no-gutters mt-3">
-                                        <div class="col-sm-2">
-                                            <div class="opacity-50">{{ translate('Price')}}:</div>
-                                        </div>
-                                        <div class="col-sm-10">
-                                            <div class="">
-                                                <strong class="fs-20 fw-600 text-primary">
-                                                    {{ home_discounted_price($detailedProduct) }}
-                                                </strong>
-                                                @if($detailedProduct->unit != null)
-                                                    <span class="opacity-70">/{{ $detailedProduct->getTranslation('unit') }}</span>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endif
-                            @endif
-
-                            @if (addon_is_activated('club_point') && $detailedProduct->earn_point > 0)
-                                <div class="row no-gutters mt-1">
-                                    <div class="col-sm-2">
-                                        <div class="opacity-50 my-2">{{  translate('Club Point') }}:</div>
-                                    </div>
-                                    <div class="col-sm-10">
-                                        <div class="d-inline-block rounded px-2 bg-soft-primary border-soft-primary border">
-                                            <span class="strong-700">{{ $detailedProduct->earn_point }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endif
-
                             <form id="option-choice-form">
                                 @csrf
                                 <input type="hidden" name="id" value="{{ $detailedProduct->id }}">
 
-                                @if ($detailedProduct->choice_options != null)
-                                    @foreach (json_decode($detailedProduct->choice_options) as $key => $choice)
+                                <div class="row">
+                                    <div class="col">
+                                        <div class="row no-gutters pb-3 d-none" id="chosen_price_div">
+                                            <div class="col-sm-2">
+                                                <div class="opacity-50">{{ translate('Total Price') }}:</div>
+                                            </div>
+                                            <div class="col-sm-10">
+                                                <div class="product-price">
+                                                    @if(home_price($detailedProduct) != home_discounted_price($detailedProduct))
+                                                    <strong id="original_price" class="fw-600 text-secondary" style="text-decoration: line-through;">
+                                                        {{ home_price($detailedProduct) }}
+                                                    </strong>
+                                                    @endif
+                                                    <strong id="chosen_price" class="h6 fw-600 text-primary">
 
-                                    <div class="row no-gutters">
-                                        <div class="col-sm-2">
-                                            <div class="opacity-50 my-2">{{ \App\Models\Attribute::find($choice->attribute_id)->getTranslation('name') }}:</div>
-                                        </div>
-                                        <div class="col-sm-10">
-                                            <div class="aiz-radio-inline">
-                                                @foreach ($choice->values as $key => $value)
-                                                <label class="aiz-megabox pl-0 mr-2 mb-0">
-                                                    <input
-                                                        type="radio"
-                                                        name="attribute_id_{{ $choice->attribute_id }}"
-                                                        value="{{ $value }}"
-                                                        @if($key == 0) checked @endif
-                                                    >
-                                                    <span class="aiz-megabox-elem rounded d-flex align-items-center justify-content-center py-2 px-3 mb-2">
-                                                        {{ $value }}
-                                                    </span>
-                                                </label>
-                                                @endforeach
+                                                    </strong>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
+                                    <div class="col">
+                                        @if ($detailedProduct->choice_options != null)
+                                            @foreach (json_decode($detailedProduct->choice_options) as $key => $choice)
+                                                <div class="row no-gutters">
+                                                    <div class="col-sm-2">
+                                                        <div class="opacity-50 my-2">
+                                                            {{ \App\Models\Attribute::find($choice->attribute_id)->getTranslation('name') }}:
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-sm-10">
+                                                        <div class="aiz-radio-inline">
+                                                            @foreach ($choice->values as $key => $value)
+                                                                <label class="aiz-megabox pl-0 mr-2">
+                                                                    <input type="radio"
+                                                                        name="attribute_id_{{ $choice->attribute_id }}"
+                                                                        value="{{ $value }}"
+                                                                        @if ($key == 0) checked @endif>
+                                                                    <span
+                                                                        class="aiz-megabox-elem rounded d-flex align-items-center justify-content-center py-2 px-3 mb-2">
+                                                                        {{ $value }}
+                                                                    </span>
+                                                                </label>
+                                                            @endforeach
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        @endif
 
-                                    @endforeach
-                                @endif
-
-                                @if (count(json_decode($detailedProduct->colors)) > 0)
-                                    <div class="row no-gutters">
-                                        <div class="col-sm-2">
-                                            <div class="opacity-50 my-2">{{ translate('Color')}}:</div>
-                                        </div>
-                                        <div class="col-sm-10">
-                                            <div class="aiz-radio-inline">
-                                                @foreach (json_decode($detailedProduct->colors) as $key => $color)
-                                                <label class="aiz-megabox pl-0 mr-2" data-toggle="tooltip" data-title="{{ \App\Models\Color::where('code', $color)->first()->name }}">
-                                                    <input
-                                                        type="radio"
-                                                        name="color"
-                                                        value="{{ \App\Models\Color::where('code', $color)->first()->name }}"
-                                                        @if($key == 0) checked @endif
-                                                    >
-                                                    <span class="aiz-megabox-elem rounded d-flex align-items-center justify-content-center p-1 mb-2">
-                                                        <span class="size-30px d-inline-block rounded" style="background: {{ $color }};"></span>
-                                                    </span>
-                                                </label>
-                                                @endforeach
+                                        @if (count(json_decode($detailedProduct->colors)) > 0)
+                                            <div class="row no-gutters">
+                                                <div class="col-sm-2">
+                                                    <div class="opacity-50">{{ translate('Color') }}:</div>
+                                                </div>
+                                                <div class="col-sm-10">
+                                                    <div class="aiz-radio-inline">
+                                                        @foreach (json_decode($detailedProduct->colors) as $key => $color)
+                                                            <label class="aiz-megabox pl-0 mr-2" data-toggle="tooltip"
+                                                                data-title="{{ \App\Models\Color::where('code', $color)->first()->name }}">
+                                                                <input type="radio" name="color"
+                                                                    value="{{ \App\Models\Color::where('code', $color)->first()->name }}"
+                                                                    @if ($key == 0) checked @endif>
+                                                                <span
+                                                                    class="aiz-megabox-elem rounded d-flex align-items-center justify-content-center p-1 mb-2">
+                                                                    <span class="size-30px d-inline-block rounded"
+                                                                        style="background: {{ $color }};"></span>
+                                                                </span>
+                                                            </label>
+                                                        @endforeach
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
-
-                                @endif
-
-                                <!-- Quantity + Add to cart -->
-                                <div class="row no-gutters">
-                                    <div class="col-sm-2">
-                                        <div class="opacity-50 my-2">{{ translate('Quantity')}}:</div>
-                                    </div>
-                                    <div class="col-sm-10">
-                                        <div class="product-quantity d-flex align-items-center">
-                                            <div class="row no-gutters align-items-center aiz-plus-minus mr-3" style="width: 130px;">
-                                                <button class="btn col-auto btn-icon btn-sm btn-circle btn-light" type="button" data-type="minus" data-field="quantity" disabled="">
-                                                    <i class="las la-minus"></i>
-                                                </button>
-                                                <input type="number" name="quantity" class="col border-0 text-center flex-grow-1 fs-16 input-number" placeholder="1" value="{{ $detailedProduct->min_qty }}" min="{{ $detailedProduct->min_qty }}" max="10" lang="en">
-                                                <button class="btn  col-auto btn-icon btn-sm btn-circle btn-light" type="button" data-type="plus" data-field="quantity">
-                                                    <i class="las la-plus"></i>
-                                                </button>
-                                            </div>
-                                            @php
-                                                $qty = 0;
-                                                foreach ($detailedProduct->stocks as $key => $stock) {
-                                                    $qty += $stock->qty;
-                                                }
-                                            @endphp
-                                            <div class="avialable-amount opacity-60">
-                                                @if($detailedProduct->stock_visibility_state == 'quantity')
-                                                (<span id="available-quantity">{{ $qty }}</span> {{ translate('available')}})
-                                                @elseif($detailedProduct->stock_visibility_state == 'text' && $qty >= 1)
-                                                    (<span id="available-quantity">{{ translate('In Stock') }}</span>)
-                                                @endif
-                                            </div>
-                                        </div>
+                                        @endif
                                     </div>
                                 </div>
 
-                                <div class="row no-gutters d-none" id="chosen_price_div">
-                                    <div class="col-sm-2">
-                                        <div class="opacity-50 my-2">{{ translate('Total Price')}}:</div>
+                                <div class="row">
+                                    <div class="col px-1" style="max-width: 40%;">
+                                        <!-- Quantity + Add to cart -->
+                                        <div class="row no-gutters">
+                                            {{-- <div class="col-sm-2">
+                                                <div class="opacity-50">{{ translate('Quantity') }}:</div>
+                                            </div> --}}
+                                            <div class="col-sm-10">
+                                                <div class="product-quantity -d-flex align-items-center">
+                                                    <div class="row no-gutters align-items-center aiz-plus-minus mr-3"
+                                                        style="width: 130px;">
+                                                        <button class="btn col-auto btn-icon btn-sm btn-circle btn-light"
+                                                            type="button" data-type="minus" data-field="quantity"
+                                                            disabled="">
+                                                            <i class="las la-minus"></i>
+                                                        </button>
+                                                        <input type="number" name="quantity"
+                                                            class="col border-0 text-center flex-grow-1 fs-16 input-number"
+                                                            placeholder="1" value="{{ $detailedProduct->min_qty }}"
+                                                            min="{{ $detailedProduct->min_qty }}" max="10"
+                                                            lang="en">
+                                                        <button class="btn  col-auto btn-icon btn-sm btn-circle btn-light"
+                                                            type="button" data-type="plus" data-field="quantity">
+                                                            <i class="las la-plus"></i>
+                                                        </button>
+                                                    </div>
+                                                    {{-- @php
+                                                        $qty = 0;
+                                                        foreach ($detailedProduct->stocks as $key => $stock) {
+                                                            $qty += $stock->qty;
+                                                        }
+                                                    @endphp
+                                                    <div class="avialable-amount opacity-60">
+                                                        @if ($detailedProduct->stock_visibility_state == 'quantity')
+                                                            (<span id="available-quantity">{{ $qty }}</span>
+                                                            {{ translate('available') }})
+                                                        @elseif($detailedProduct->stock_visibility_state == 'text' && $qty >= 1)
+                                                            (<span id="available-quantity">{{ translate('In Stock') }}</span>)
+                                                        @endif
+                                                    </div> --}}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="col-sm-10">
-                                        <div class="product-price">
-                                            <strong id="chosen_price" class="h4 fw-600 text-primary">
-
-                                            </strong>
+                                    <div class="col-auto px-1 d-flex">
+                                        <div class="d-flex">
+                                            @if ($detailedProduct->external_link != null)
+                                                <a type="button" class="btn btn-primary buy-now fw-600"
+                                                    href="{{ $detailedProduct->external_link }}">
+                                                    <i class="la la-share"></i> {{ translate($detailedProduct->external_link_btn) }}
+                                                </a>
+                                            @else
+                                                <button type="button" class="btn btn-soft-primary mr-2 add-to-cart fw-600"
+                                                    onclick="addToCart()">
+                                                    <i class="las la-shopping-bag" style="font-size: 130%;"></i>
+                                                    <span class="d-none d-md-inline-block"> {{ translate('Add to cart') }}</span>
+                                                </button>
+                                                <button type="button" class="btn btn-primary buy-now fw-600" onclick="buyNow()">
+                                                    <i class="la la-shopping-cart" style="font-size: 130%;"></i> {{ translate('Buy Now') }}
+                                                </button>
+                                            @endif
+                                            <button type="button" class="btn btn-secondary out-of-stock fw-600 d-none" disabled>
+                                                <i class="la la-cart-arrow-down"></i> {{ translate('Out of Stock') }}
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
-
                             </form>
-
-                            <div class="mt-1">
-                                @if ($detailedProduct->external_link != null)
-                                    <a type="button" class="btn btn-primary buy-now fw-600" href="{{ $detailedProduct->external_link }}">
-                                        <i class="la la-share"></i> {{ translate($detailedProduct->external_link_btn)}}
-                                    </a>
-                                @else
-                                    <button type="button" class="btn btn-soft-primary mr-2 add-to-cart fw-600" onclick="addToCart()">
-                                        <i class="las la-shopping-bag"></i>
-                                        <span class="d-none d-md-inline-block"> {{ translate('Add to cart')}}</span>
-                                    </button>
-                                    <button type="button" class="btn btn-primary buy-now fw-600" onclick="buyNow()">
-                                        <i class="la la-shopping-cart"></i> {{ translate('Buy Now')}}
-                                    </button>
-                                @endif
-                                <button type="button" class="btn btn-secondary out-of-stock fw-600 d-none" disabled>
-                                    <i class="la la-cart-arrow-down"></i> {{ translate('Out of Stock')}}
-                                </button>
-                            </div>
-
 
 
                             <div class="d-table width-100 mt-3">
                                 <div class="d-table-cell">
                                     <!-- Add to wishlist button -->
-                                    <button type="button" class="btn pl-0 btn-link fw-600" onclick="addToWishList({{ $detailedProduct->id }})">
-                                        {{ translate('Add to wishlist')}}
+                                    <button type="button" class="btn pl-0 btn-link fw-600"
+                                        onclick="addToWishList({{ $detailedProduct->id }})">
+                                        {{ translate('Add to wishlist') }}
                                     </button>
                                     <!-- Add to compare button -->
-                                    <button type="button" class="btn btn-link btn-icon-left fw-600" onclick="addToCompare({{ $detailedProduct->id }})">
-                                        {{ translate('Add to compare')}}
+                                    <button type="button" class="btn btn-link btn-icon-left fw-600"
+                                        onclick="addToCompare({{ $detailedProduct->id }})">
+                                        {{ translate('Add to compare') }}
                                     </button>
-                                    @if(Auth::check() && addon_is_activated('affiliate_system') && (\App\Models\AffiliateOption::where('type', 'product_sharing')->first()->status || \App\Models\AffiliateOption::where('type', 'category_wise_affiliate')->first()->status) && Auth::user()->affiliate_user != null && Auth::user()->affiliate_user->status)
+                                    @if (Auth::check() && addon_is_activated('affiliate_system') && (\App\Models\AffiliateOption::where('type', 'product_sharing')->first()->status || \App\Models\AffiliateOption::where('type', 'category_wise_affiliate')->first()->status) && Auth::user()->affiliate_user != null && Auth::user()->affiliate_user->status)
                                         @php
-                                            if(Auth::check()){
-                                                if(Auth::user()->referral_code == null){
-                                                    Auth::user()->referral_code = substr(Auth::user()->id.Str::random(10), 0, 10);
+                                            if (Auth::check()) {
+                                                if (Auth::user()->referral_code == null) {
+                                                    Auth::user()->referral_code = substr(Auth::user()->id . Str::random(10), 0, 10);
                                                     Auth::user()->save();
                                                 }
                                                 $referral_code = Auth::user()->referral_code;
-                                                $referral_code_url = URL::to('/product').'/'.$detailedProduct->slug."?product_referral_code=$referral_code";
+                                                $referral_code_url = URL::to('/product') . '/' . $detailedProduct->slug . "?product_referral_code=$referral_code";
                                             }
                                         @endphp
                                         <div>
-                                            <button type=button id="ref-cpurl-btn" class="btn btn-sm btn-secondary" data-attrcpy="{{ translate('Copied')}}" onclick="CopyToClipboard(this)" data-url="{{$referral_code_url}}">{{ translate('Copy the Promote Link')}}</button>
+                                            <button type=button id="ref-cpurl-btn" class="btn btn-sm btn-secondary"
+                                                data-attrcpy="{{ translate('Copied') }}"
+                                                onclick="CopyToClipboard(this)"
+                                                data-url="{{ $referral_code_url }}">{{ translate('Copy the Promote Link') }}</button>
                                         </div>
                                     @endif
                                 </div>
