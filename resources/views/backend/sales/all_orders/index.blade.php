@@ -96,11 +96,12 @@
                             </div>
                         </th>
                         <th>{{ translate('Order Code') }}</th>
-                        <th data-breakpoints="md">{{ translate('Num. of Products') }}</th>
-                        <th data-breakpoints="md">{{ translate('Customer') }}</th>
+                        <th data-breakpoints="md">Name</th>
+                        <th data-breakpoints="md">Phone</th>
+                        <th data-breakpoints="md">Address</th>
                         <th data-breakpoints="md">{{ translate('Amount') }}</th>
-                        <th data-breakpoints="md">{{ translate('Delivery Status') }}</th>
-                        <th data-breakpoints="md">{{ translate('Payment Status') }}</th>
+                        <th data-breakpoints="md">{{ translate('Status') }}</th>
+                        {{-- <th data-breakpoints="md">{{ translate('Payment Status') }}</th> --}}
                         @if (addon_is_activated('refund_request'))
                         <th>{{ translate('Refund') }}</th>
                         @endif
@@ -123,18 +124,18 @@
                                 </div>
                             </div>
                         </td>
-                        <td>
+                        <td style="white-space: nowrap;">
                             {{ $order->code }}
                         </td>
+                        @php $shipping_address = json_decode($order->shipping_address); @endphp
                         <td>
-                            {{ count($order->orderDetails) }}
+                            {{ $shipping_address->name }}
                         </td>
                         <td>
-                            @if ($order->user != null)
-                            {{ $order->user->name }}
-                            @else
-                            Guest ({{ $order->guest_id }})
-                            @endif
+                            {{ $shipping_address->phone }}
+                        </td>
+                        <td>
+                            {{ $shipping_address->address }}
                         </td>
                         <td>
                             {{ single_price($order->grand_total) }}
@@ -149,13 +150,13 @@
                             @endphp
                             {!! $status !!}
                         </td>
-                        <td>
+                        {{-- <td>
                             @if ($order->payment_status == 'paid')
                             <span class="badge badge-inline badge-success">{{translate('Paid')}}</span>
                             @else
                             <span class="badge badge-inline badge-danger">{{translate('Unpaid')}}</span>
                             @endif
-                        </td>
+                        </td> --}}
                         @if (addon_is_activated('refund_request'))
                         <td>
                             @if (count($order->refund_requests) > 0)
